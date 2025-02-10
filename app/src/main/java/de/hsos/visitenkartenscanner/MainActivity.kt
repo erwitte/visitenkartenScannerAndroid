@@ -52,14 +52,17 @@ class MainActivity : ComponentActivity() {
         val image = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
-                val extractedText = visionText.text
-                println("Extracted text: $extractedText")
-                // TODO: Handle extracted text (e.g., save to entries list)
+                for (block in visionText.textBlocks) { // Iterate over detected text blocks
+                    for (line in block.lines) { // Iterate over lines inside each block
+                        println("Extracted Line: ${line.text}")
+                    }
+                }
             }
             .addOnFailureListener { e ->
                 println("Text recognition failed: ${e.message}")
             }
     }
+
 }
 
 @Composable
