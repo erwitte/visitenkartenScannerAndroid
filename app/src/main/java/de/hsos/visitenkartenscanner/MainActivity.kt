@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,28 +19,52 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat.startActivityForResult
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-
-// Data class representing an entry
-data class Entry(val name: String, val email: String, val phone: String)
+import androidx.lifecycle.lifecycleScope
+import de.hsos.visitenkartenscanner.database.BusinessCard
+import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
+import de.hsos.visitenkartenscanner.database.BusinessCardDao
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 
 class MainActivity : ComponentActivity() {
-    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    private lateinit var database: BusinessCardDatabase
+    private lateinit var businessCardDao: BusinessCardDao
+    private val businessCards = mutableStateListOf<BusinessCard>()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            EntryListScreen(::openCamera)
-        }
-    }
-
+    // **📌 Register camera launcher BEFORE onCreate() is called**
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
-            imageBitmap?.let { processImage(it) }
+            imageBitmap?.let { bitmap ->
+                val base64Image = encodeImageToBase64(bitmap)
+                saveBusinessCard(base64Image) // Save and update UI
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Initialize Room database
+        database = BusinessCardDatabase.getDatabase(this)
+        businessCardDao = database.businessCardDao()
+
+        setContent {
+            val coroutineScope = rememberCoroutineScope()
+
+            // Load database entries when the screen is displayed
+            LaunchedEffect(Unit) {
+                coroutineScope.launch {
+                    val storedCards = businessCardDao.getAll()
+                    businessCards.clear()
+                    businessCards.addAll(storedCards)
+                }
+            }
+
+            EntryListScreen(
+                entries = businessCards,
+                openCamera = { openCamera() }
+            )
         }
     }
 
@@ -48,27 +73,34 @@ class MainActivity : ComponentActivity() {
         cameraLauncher.launch(intent)
     }
 
-    private fun processImage(bitmap: Bitmap) {
-        val image = InputImage.fromBitmap(bitmap, 0)
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                for (block in visionText.textBlocks) { // Iterate over detected text blocks
-                    for (line in block.lines) { // Iterate over lines inside each block
-                        println("Extracted Line: ${line.text}")
-                    }
-                }
-            }
-            .addOnFailureListener { e ->
-                println("Text recognition failed: ${e.message}")
-            }
+    private fun saveBusinessCard(imageBase64: String) {
+        val coroutineScope = lifecycleScope
+        coroutineScope.launch {
+            val newCard = BusinessCard(
+                name = "w",
+                phoneNumber = "w",
+                email = "w",
+                imageBase64 = imageBase64
+            )
+            businessCardDao.insert(newCard)
+
+            // Refresh list from database
+            val updatedCards = businessCardDao.getAll()
+            businessCards.clear()
+            businessCards.addAll(updatedCards)
+        }
     }
 
+    private fun encodeImageToBase64(bitmap: Bitmap): String {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
+        val byteArray = byteArrayOutputStream.toByteArray()
+        return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    }
 }
 
 @Composable
-fun EntryListScreen(openCamera: () -> Unit) {
-    val entries = remember { mutableStateListOf<Entry>() } // Placeholder for database entries
-
+fun EntryListScreen(entries: List<BusinessCard>, openCamera: () -> Unit) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
@@ -99,7 +131,7 @@ fun EntryListScreen(openCamera: () -> Unit) {
 }
 
 @Composable
-fun EntryCard(entry: Entry) {
+fun EntryCard(entry: BusinessCard) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -107,9 +139,9 @@ fun EntryCard(entry: Entry) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = entry.name, fontSize = 18.sp, color = Color.Black)
-            Text(text = entry.email, fontSize = 14.sp, color = Color.DarkGray)
-            Text(text = entry.phone, fontSize = 14.sp, color = Color.DarkGray)
+            Text(text = "Name: ${entry.name}", fontSize = 18.sp, color = Color.Black)
+            Text(text = "Email: ${entry.email}", fontSize = 14.sp, color = Color.DarkGray)
+            Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp, color = Color.DarkGray)
         }
     }
 }
