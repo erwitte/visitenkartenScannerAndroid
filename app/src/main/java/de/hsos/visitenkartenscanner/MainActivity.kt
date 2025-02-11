@@ -3,12 +3,15 @@ package de.hsos.visitenkartenscanner
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,7 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
@@ -31,13 +34,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var businessCardDao: BusinessCardDao
     private val businessCards = mutableStateListOf<BusinessCard>()
 
-    // **📌 Register camera launcher BEFORE onCreate() is called**
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
             imageBitmap?.let { bitmap ->
                 val base64Image = encodeImageToBase64(bitmap)
-                saveBusinessCard(base64Image) // Save and update UI
+                saveBusinessCard(base64Image)
             }
         }
     }
@@ -45,14 +47,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize Room database
         database = BusinessCardDatabase.getDatabase(this)
         businessCardDao = database.businessCardDao()
 
         setContent {
             val coroutineScope = rememberCoroutineScope()
+            var selectedEntry by remember { mutableStateOf<BusinessCard?>(null) }
 
-            // Load database entries when the screen is displayed
             LaunchedEffect(Unit) {
                 coroutineScope.launch {
                     val storedCards = businessCardDao.getAll()
@@ -61,10 +62,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            EntryListScreen(
-                entries = businessCards,
-                openCamera = { openCamera() }
-            )
+            if (selectedEntry == null) {
+                EntryListScreen(
+                    entries = businessCards,
+                    onEntryClick = { entry -> selectedEntry = entry },
+                    openCamera = { openCamera() }
+                )
+            } else {
+                EntryDetailsScreen(
+                    entry = selectedEntry!!,
+                    onBack = { selectedEntry = null }
+                )
+            }
         }
     }
 
@@ -84,7 +93,6 @@ class MainActivity : ComponentActivity() {
             )
             businessCardDao.insert(newCard)
 
-            // Refresh list from database
             val updatedCards = businessCardDao.getAll()
             businessCards.clear()
             businessCards.addAll(updatedCards)
@@ -100,14 +108,14 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun EntryListScreen(entries: List<BusinessCard>, openCamera: () -> Unit) {
+fun EntryListScreen(entries: List<BusinessCard>, onEntryClick: (BusinessCard) -> Unit, openCamera: () -> Unit) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { openCamera() },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Text("+", fontSize = 24.sp, color = Color.White)
+                Text("+")
             }
         }
     ) { paddingValues ->
@@ -118,11 +126,11 @@ fun EntryListScreen(entries: List<BusinessCard>, openCamera: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             if (entries.isEmpty()) {
-                Text("No entries", fontSize = 20.sp, color = Color.Gray)
+                Text("No entries", fontSize = 20.sp)
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(entries) { entry ->
-                        EntryCard(entry)
+                        EntryCard(entry, onEntryClick)
                     }
                 }
             }
@@ -131,17 +139,62 @@ fun EntryListScreen(entries: List<BusinessCard>, openCamera: () -> Unit) {
 }
 
 @Composable
-fun EntryCard(entry: BusinessCard) {
+fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
+            .padding(8.dp)
+            .clickable { onEntryClick(entry) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Name: ${entry.name}", fontSize = 18.sp, color = Color.Black)
-            Text(text = "Email: ${entry.email}", fontSize = 14.sp, color = Color.DarkGray)
-            Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp, color = Color.DarkGray)
+            Text(text = "Name: ${entry.name}", fontSize = 18.sp)
+            Text(text = "Email: ${entry.email}", fontSize = 14.sp)
+            Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp)
         }
+    }
+}
+
+@Composable
+fun EntryDetailsScreen(entry: BusinessCard, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "Name: ${entry.name}", fontSize = 24.sp)
+        Text(text = "Email: ${entry.email}", fontSize = 18.sp)
+        Text(text = "Phone: ${entry.phoneNumber}", fontSize = 18.sp)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val bitmap = remember(entry.imageBase64) { decodeBase64ToBitmap(entry.imageBase64) }
+        bitmap?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = "Business Card Image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .padding(top = 16.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = onBack) {
+            Text("Back to List")
+        }
+    }
+}
+
+fun decodeBase64ToBitmap(base64Str: String): Bitmap? {
+    return try {
+        val decodedBytes = Base64.decode(base64Str, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }
