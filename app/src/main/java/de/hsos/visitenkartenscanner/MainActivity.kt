@@ -15,10 +15,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,7 +69,8 @@ class MainActivity : ComponentActivity() {
                 EntryListScreen(
                     entries = businessCards,
                     onEntryClick = { entry -> selectedEntry = entry },
-                    openCamera = { openCamera() }
+                    openCamera = { openCamera() },
+                    deleteEntry = { entry -> deleteBusinessCard(entry) }
                 )
             } else {
                 EntryDetailsScreen(
@@ -99,6 +103,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun deleteBusinessCard(card: BusinessCard) {
+        val coroutineScope = lifecycleScope
+        coroutineScope.launch {
+            businessCardDao.delete(card)
+            val updatedCards = businessCardDao.getAll()
+            businessCards.clear()
+            businessCards.addAll(updatedCards)
+        }
+    }
+
     private fun encodeImageToBase64(bitmap: Bitmap): String {
         val byteArrayOutputStream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
@@ -108,7 +122,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun EntryListScreen(entries: List<BusinessCard>, onEntryClick: (BusinessCard) -> Unit, openCamera: () -> Unit) {
+fun EntryListScreen(
+    entries: List<BusinessCard>,
+    onEntryClick: (BusinessCard) -> Unit,
+    openCamera: () -> Unit,
+    deleteEntry: (BusinessCard) -> Unit
+) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
@@ -130,7 +149,7 @@ fun EntryListScreen(entries: List<BusinessCard>, onEntryClick: (BusinessCard) ->
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(entries) { entry ->
-                        EntryCard(entry, onEntryClick)
+                        EntryCard(entry, onEntryClick, deleteEntry)
                     }
                 }
             }
@@ -139,7 +158,7 @@ fun EntryListScreen(entries: List<BusinessCard>, onEntryClick: (BusinessCard) ->
 }
 
 @Composable
-fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit) {
+fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteEntry: (BusinessCard) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -147,10 +166,24 @@ fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit) {
             .clickable { onEntryClick(entry) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Name: ${entry.name}", fontSize = 18.sp)
-            Text(text = "Email: ${entry.email}", fontSize = 14.sp)
-            Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Name: ${entry.name}", fontSize = 18.sp)
+                Text(text = "Email: ${entry.email}", fontSize = 14.sp)
+                Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color.Red, shape = CircleShape)
+                    .clickable { deleteEntry(entry) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("X", color = Color.White, fontSize = 20.sp)
+            }
         }
     }
 }
