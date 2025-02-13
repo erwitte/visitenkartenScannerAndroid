@@ -9,7 +9,14 @@ import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import de.hsos.visitenkartenscanner.database.BusinessCard
 import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
@@ -27,7 +34,7 @@ class MainActivity : ComponentActivity() {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
             imageBitmap?.let { bitmap ->
                 val base64Image = encodeImageToBase64(bitmap)
-                saveBusinessCard(base64Image)
+                showEditableScreen(base64Image)
             }
         }
     }
@@ -38,6 +45,15 @@ class MainActivity : ComponentActivity() {
         database = BusinessCardDatabase.getDatabase(this)
         businessCardDao = database.businessCardDao()
 
+        showMainScreen()
+    }
+
+    private fun openCamera() {
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        cameraLauncher.launch(intent)
+    }
+
+    private fun showMainScreen() {
         setContent {
             val coroutineScope = rememberCoroutineScope()
             var selectedEntry by remember { mutableStateOf<BusinessCard?>(null) }
@@ -66,18 +82,34 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun openCamera() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        cameraLauncher.launch(intent)
+    private fun showEditableScreen(imageBase64: String) {
+        setContent {
+            var name by remember { mutableStateOf("John Doe") }
+            var email by remember { mutableStateOf("m.m@mail.de") }
+            var phone by remember { mutableStateOf("1234") }
+
+            Column(modifier = Modifier.padding(16.dp)) {
+                TextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
+                TextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
+                TextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone") })
+
+                Button(onClick = {
+                    saveBusinessCard(imageBase64, name, email, phone)
+                    showMainScreen()
+                }) {
+                    Text("Save")
+                }
+            }
+        }
     }
 
-    private fun saveBusinessCard(imageBase64: String) {
+    private fun saveBusinessCard(imageBase64: String, name: String, email: String, phone: String) {
         val coroutineScope = lifecycleScope
         coroutineScope.launch {
             val newCard = BusinessCard(
-                name = "w",
-                phoneNumber = "w",
-                email = "w",
+                name = name,
+                phoneNumber = phone,
+                email = email,
                 imageBase64 = imageBase64
             )
             businessCardDao.insert(newCard)
