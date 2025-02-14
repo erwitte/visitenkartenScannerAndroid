@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var database: BusinessCardDatabase
     private lateinit var businessCardDao: BusinessCardDao
     private val businessCards = mutableStateListOf<BusinessCard>()
+    private var parsedString: Array<String> = Array(4){""}
 
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -48,7 +49,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         database = BusinessCardDatabase.getDatabase(this)
         businessCardDao = database.businessCardDao()
 
@@ -91,10 +91,10 @@ class MainActivity : ComponentActivity() {
 
     private fun showEditableScreen(imageBase64: String) {
         setContent {
-            var name by remember { mutableStateOf("John Doe") }
-            var email by remember { mutableStateOf("m.m@mail.de") }
-            var phone by remember { mutableStateOf("1234") }
-            var address by remember { mutableStateOf("Neumarkt 1a, 49074 Osnabrück")}
+            var name by remember { mutableStateOf(parsedString[0]) }
+            var email by remember { mutableStateOf(parsedString[1]) }
+            var phone by remember { mutableStateOf(parsedString[2]) }
+            var address by remember { mutableStateOf(parsedString[3])}
 
             Column(modifier = Modifier.padding(16.dp)) {
                 TextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
@@ -160,6 +160,21 @@ class MainActivity : ComponentActivity() {
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
                 Log.d("MLKit", "Extracted text: ${visionText.text}")
+                parsedString = extractData(
+                    """
+                    Beyer
+                    Dämmtechnik
+                    Henning Beyer
+                    Geschaftsfuhrer
+                    Osloer Straße 21
+                    49377 Vechta
+                    GmbH
+                    Tel. 0 44 41 / 889 93 40
+                    Mobil 0172/431 49 24
+                    info@beyer-daemmtechnik.de
+                    www.bevem mtechnik.de
+                    """.trimIndent()
+                ).split(";").toTypedArray()
             }
             .addOnFailureListener { e ->
                 Log.e("MLKit", "Text extraction failed", e)
