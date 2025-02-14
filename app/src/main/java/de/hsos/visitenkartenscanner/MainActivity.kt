@@ -3,9 +3,11 @@ package de.hsos.visitenkartenscanner
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Base64
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +20,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import de.hsos.visitenkartenscanner.database.BusinessCard
 import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
 import de.hsos.visitenkartenscanner.database.BusinessCardDao
@@ -33,7 +38,9 @@ class MainActivity : ComponentActivity() {
         if (result.resultCode == Activity.RESULT_OK) {
             val imageBitmap = result.data?.extras?.get("data") as? Bitmap
             imageBitmap?.let { bitmap ->
-                val base64Image = encodeImageToBase64(bitmap)
+                val rotatedBitmap = rotateBitmap(bitmap, -90f)
+                val base64Image = encodeImageToBase64(rotatedBitmap)
+                extractTextFromImage(rotatedBitmap)
                 showEditableScreen(base64Image)
             }
         }
@@ -135,5 +142,24 @@ class MainActivity : ComponentActivity() {
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
         val byteArray = byteArrayOutputStream.toByteArray()
         return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    }
+
+    private fun extractTextFromImage(bitmap: Bitmap) {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+        recognizer.process(image)
+            .addOnSuccessListener { visionText ->
+                Log.d("MLKit", "Extracted text: ${visionText.text}")
+            }
+            .addOnFailureListener { e ->
+                Log.e("MLKit", "Text extraction failed", e)
+            }
+    }
+
+    private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(degrees)
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 }
