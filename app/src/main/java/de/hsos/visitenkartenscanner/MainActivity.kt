@@ -94,14 +94,16 @@ class MainActivity : ComponentActivity() {
             var name by remember { mutableStateOf("John Doe") }
             var email by remember { mutableStateOf("m.m@mail.de") }
             var phone by remember { mutableStateOf("1234") }
+            var address by remember { mutableStateOf("Neumarkt 1a, 49074 Osnabrück")}
 
             Column(modifier = Modifier.padding(16.dp)) {
                 TextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
                 TextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
                 TextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone") })
+                TextField(value = address, onValueChange = { address = it}, label = { Text("Adress")})
 
                 Button(onClick = {
-                    saveBusinessCard(imageBase64, name, email, phone)
+                    saveBusinessCard(imageBase64, name, email, phone, address)
                     showMainScreen()
                 }) {
                     Text("Save")
@@ -110,14 +112,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveBusinessCard(imageBase64: String, name: String, email: String, phone: String) {
+    private fun saveBusinessCard(
+        imageBase64: String,
+        name: String,
+        email: String,
+        phone: String,
+        address: String
+    ) {
         val coroutineScope = lifecycleScope
         coroutineScope.launch {
             val newCard = BusinessCard(
                 name = name,
                 phoneNumber = phone,
                 email = email,
-                imageBase64 = imageBase64
+                imageBase64 = imageBase64,
+                address = address
             )
             businessCardDao.insert(newCard)
 

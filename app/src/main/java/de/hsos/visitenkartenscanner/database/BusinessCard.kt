@@ -9,6 +9,7 @@ data class BusinessCard(
     val name: String,
     val phoneNumber: String,
     val email: String,
-    val imageBase64: String
+    val imageBase64: String,
+    val address: String
 )
 

@@ -73,6 +73,7 @@ fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteE
                 Text(text = "Name: ${entry.name}", fontSize = 18.sp)
                 Text(text = "Email: ${entry.email}", fontSize = 14.sp)
                 Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp)
+                Text(text = "Address: ${entry.address}", fontSize = 14.sp )
             }
             Box(
                 modifier = Modifier
@@ -98,6 +99,7 @@ fun EntryDetailsScreen(entry: BusinessCard, onBack: () -> Unit) {
         Text(text = "Name: ${entry.name}", fontSize = 24.sp)
         Text(text = "Email: ${entry.email}", fontSize = 18.sp)
         Text(text = "Phone: ${entry.phoneNumber}", fontSize = 18.sp)
+        Text(text = "Address: ${entry.address}", fontSize = 18.sp )
 
         Spacer(modifier = Modifier.height(16.dp))
 
