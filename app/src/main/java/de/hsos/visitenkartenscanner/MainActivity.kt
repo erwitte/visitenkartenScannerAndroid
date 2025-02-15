@@ -20,20 +20,33 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import de.hsos.visitenkartenscanner.database.BusinessCard
 import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
 import de.hsos.visitenkartenscanner.database.BusinessCardDao
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import okhttp3.*
+import com.google.gson.*
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import extractData
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import java.io.IOException
 
 class MainActivity : ComponentActivity() {
     private lateinit var database: BusinessCardDatabase
     private lateinit var businessCardDao: BusinessCardDao
     private val businessCards = mutableStateListOf<BusinessCard>()
-    private var parsedString: Array<String> = Array(4){""}
+    private var parsedString: String = ""
+    private lateinit var splitParsedString: Array<String>
 
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -41,8 +54,11 @@ class MainActivity : ComponentActivity() {
             imageBitmap?.let { bitmap ->
                 val rotatedBitmap = rotateBitmap(bitmap, -90f)
                 val base64Image = encodeImageToBase64(rotatedBitmap)
-                extractTextFromImage(rotatedBitmap)
-                showEditableScreen(base64Image)
+                lifecycleScope.launch {
+                    parsedString = extractDataFromImage(rotatedBitmap)
+                    //splitParsedString = parsedString.split(";").toTypedArray()
+                    showEditableScreen(base64Image, parsedString)
+                }
             }
         }
     }
@@ -89,21 +105,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun showEditableScreen(imageBase64: String) {
+    private fun showEditableScreen(imageBase64: String, parsedText: String) {
+        val parts = parsedText.split(";")
+        val name = parts.getOrNull(0) ?: ""
+        val email = parts.getOrNull(1) ?: ""
+        val phone = parts.getOrNull(2) ?: ""
+        val address = parts.getOrNull(3) ?: ""
+
         setContent {
-            var name by remember { mutableStateOf(parsedString[0]) }
-            var email by remember { mutableStateOf(parsedString[1]) }
-            var phone by remember { mutableStateOf(parsedString[2]) }
-            var address by remember { mutableStateOf(parsedString[3])}
+            var nameState by remember { mutableStateOf(name) }
+            var emailState by remember { mutableStateOf(email) }
+            var phoneState by remember { mutableStateOf(phone) }
+            var addressState by remember { mutableStateOf(address)}
 
             Column(modifier = Modifier.padding(16.dp)) {
-                TextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
-                TextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
-                TextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone") })
-                TextField(value = address, onValueChange = { address = it}, label = { Text("Adress")})
+                TextField(value = nameState, onValueChange = { nameState = it }, label = { Text("Name") })
+                TextField(value = emailState, onValueChange = { emailState = it }, label = { Text("Email") })
+                TextField(value = phoneState, onValueChange = { phoneState = it }, label = { Text("Phone") })
+                TextField(value = addressState, onValueChange = { addressState = it}, label = { Text("Address")})
 
                 Button(onClick = {
-                    saveBusinessCard(imageBase64, name, email, phone, address)
+                    saveBusinessCard(imageBase64, nameState, emailState, phoneState, addressState)
                     showMainScreen()
                 }) {
                     Text("Save")
@@ -153,15 +175,16 @@ class MainActivity : ComponentActivity() {
         return Base64.encodeToString(byteArray, Base64.DEFAULT)
     }
 
-    private fun extractTextFromImage(bitmap: Bitmap) {
+    private suspend fun extractDataFromImage(bitmap: Bitmap): String {
         val image = InputImage.fromBitmap(bitmap, 0)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                Log.d("MLKit", "Extracted text: ${visionText.text}")
-                parsedString = extractData(
-                    """
+        return suspendCancellableCoroutine { continuation ->
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    lifecycleScope.launch {
+                        val extractedText = extractData(
+                            """
                     Beyer
                     Dämmtechnik
                     Henning Beyer
@@ -173,12 +196,16 @@ class MainActivity : ComponentActivity() {
                     Mobil 0172/431 49 24
                     info@beyer-daemmtechnik.de
                     www.bevem mtechnik.de
-                    """.trimIndent()
-                ).split(";").toTypedArray()
-            }
-            .addOnFailureListener { e ->
-                Log.e("MLKit", "Text extraction failed", e)
-            }
+                    """
+                        )
+                        continuation.resume(extractedText)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("MLKit", "Text extraction failed", e)
+                    continuation.resume("")
+                }
+        }
     }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
