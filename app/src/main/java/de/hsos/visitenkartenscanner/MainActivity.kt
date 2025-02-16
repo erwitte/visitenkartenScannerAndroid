@@ -11,19 +11,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import de.hsos.visitenkartenscanner.database.BusinessCard
 import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
@@ -118,55 +106,20 @@ class MainActivity : ComponentActivity() {
         val address = parts.getOrNull(3) ?: ""
 
         setContent {
-            var nameState by remember { mutableStateOf(name) }
-            var emailState by remember { mutableStateOf(email) }
-            var phoneState by remember { mutableStateOf(phone) }
-            var addressState by remember { mutableStateOf(address) }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    TextField(
-                        value = nameState,
-                        onValueChange = { nameState = it },
-                        label = { Text("Name") })
-                    TextField(
-                        value = emailState,
-                        onValueChange = { emailState = it },
-                        label = { Text("Email") })
-                    TextField(
-                        value = phoneState,
-                        onValueChange = { phoneState = it },
-                        label = { Text("Phone") })
-                    TextField(
-                        value = addressState,
-                        onValueChange = { addressState = it },
-                        label = { Text("Address") })
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(onClick = {
-                        saveBusinessCard(
-                            imageBase64,
-                            nameState,
-                            emailState,
-                            phoneState,
-                            addressState
-                        )
-                        showMainScreen()
-                    }) {
-                        Text("Save")
-                    }
+            BusinessCardEditor(
+                imageBase64 = imageBase64,
+                initialName = name,
+                initialEmail = email,
+                initialPhone = phone,
+                initialAddress = address,
+                onSave = { updatedName, updatedEmail, updatedPhone, updatedAddress ->
+                    saveBusinessCard(imageBase64, updatedName, updatedEmail, updatedPhone, updatedAddress)
+                    showMainScreen()
                 }
-            }
+            )
         }
     }
+
 
     private fun saveBusinessCard(
         imageBase64: String,

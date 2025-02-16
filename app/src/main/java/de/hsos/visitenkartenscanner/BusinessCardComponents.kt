@@ -74,6 +74,60 @@ fun ErrorScreen(onDismiss: () -> Unit) {
 }
 
 @Composable
+fun BusinessCardEditor(
+    imageBase64: String,
+    initialName: String,
+    initialEmail: String,
+    initialPhone: String,
+    initialAddress: String,
+    onSave: (String, String, String, String) -> Unit
+) {
+    var nameState by remember { mutableStateOf(initialName) }
+    var emailState by remember { mutableStateOf(initialEmail) }
+    var phoneState by remember { mutableStateOf(initialPhone) }
+    var addressState by remember { mutableStateOf(initialAddress) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TextField(
+                value = nameState,
+                onValueChange = { nameState = it },
+                label = { Text("Name") }
+            )
+            TextField(
+                value = emailState,
+                onValueChange = { emailState = it },
+                label = { Text("Email") }
+            )
+            TextField(
+                value = phoneState,
+                onValueChange = { phoneState = it },
+                label = { Text("Phone") }
+            )
+            TextField(
+                value = addressState,
+                onValueChange = { addressState = it },
+                label = { Text("Address") }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(onClick = { onSave(nameState, emailState, phoneState, addressState) }) {
+                Text("Save")
+            }
+        }
+    }
+}
+
+
+@Composable
 fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteEntry: (BusinessCard) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
 
