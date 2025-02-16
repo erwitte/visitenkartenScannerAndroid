@@ -57,6 +57,23 @@ fun EntryListScreen(
 }
 
 @Composable
+fun ErrorScreen(onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Error: Unable to extract all required fields!", color = Color.Red)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onDismiss) {
+            Text("Okay")
+        }
+    }
+}
+
+@Composable
 fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteEntry: (BusinessCard) -> Unit) {
     Card(
         modifier = Modifier

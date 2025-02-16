@@ -27,19 +27,10 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import okhttp3.*
-import com.google.gson.*
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import extractData
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import java.io.IOException
 
 class MainActivity : ComponentActivity() {
     private lateinit var database: BusinessCardDatabase
@@ -56,8 +47,12 @@ class MainActivity : ComponentActivity() {
                 val base64Image = encodeImageToBase64(rotatedBitmap)
                 lifecycleScope.launch {
                     parsedString = extractDataFromImage(rotatedBitmap)
-                    //splitParsedString = parsedString.split(";").toTypedArray()
-                    showEditableScreen(base64Image, parsedString)
+                    val parts = parsedString.split(";")
+                    if (parts.size == 4){
+                        showEditableScreen(base64Image, parts)
+                    } else {
+                        showErrorScreen()
+                    }
                 }
             }
         }
@@ -74,6 +69,12 @@ class MainActivity : ComponentActivity() {
     private fun openCamera() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         cameraLauncher.launch(intent)
+    }
+
+    private fun showErrorScreen() {
+        setContent {
+            ErrorScreen { showMainScreen() }
+        }
     }
 
     private fun showMainScreen() {
@@ -105,8 +106,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun showEditableScreen(imageBase64: String, parsedText: String) {
-        val parts = parsedText.split(";")
+    private fun showEditableScreen(imageBase64: String, parts: List<String>) {
         val name = parts.getOrNull(0) ?: ""
         val email = parts.getOrNull(1) ?: ""
         val phone = parts.getOrNull(2) ?: ""
