@@ -183,21 +183,7 @@ class MainActivity : ComponentActivity() {
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     lifecycleScope.launch {
-                        val extractedText = extractData(
-                            """
-                    Beyer
-                    Dämmtechnik
-                    Henning Beyer
-                    Geschaftsfuhrer
-                    Osloer Straße 21
-                    49377 Vechta
-                    GmbH
-                    Tel. 0 44 41 / 889 93 40
-                    Mobil 0172/431 49 24
-                    info@beyer-daemmtechnik.de
-                    www.bevem mtechnik.de
-                    """
-                        )
+                        val extractedText = extractData(visionText.text)
                         continuation.resume(extractedText)
                     }
                 }

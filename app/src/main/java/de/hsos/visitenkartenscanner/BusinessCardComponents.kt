@@ -75,6 +75,8 @@ fun ErrorScreen(onDismiss: () -> Unit) {
 
 @Composable
 fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteEntry: (BusinessCard) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,20 +92,42 @@ fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteE
                 Text(text = "Name: ${entry.name}", fontSize = 18.sp)
                 Text(text = "Email: ${entry.email}", fontSize = 14.sp)
                 Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp)
-                Text(text = "Address: ${entry.address}", fontSize = 14.sp )
+                Text(text = "Address: ${entry.address}", fontSize = 14.sp)
             }
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .background(Color.Red, shape = CircleShape)
-                    .clickable { deleteEntry(entry) },
+                    .clickable { showDialog = true },
                 contentAlignment = Alignment.Center
             ) {
                 Text("X", color = Color.White, fontSize = 20.sp)
             }
         }
     }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete this entry?") },
+            confirmButton = {
+                Button(onClick = {
+                    deleteEntry(entry)
+                    showDialog = false
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
+
 
 @Composable
 fun EntryDetailsScreen(entry: BusinessCard, onBack: () -> Unit) {
