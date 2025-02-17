@@ -57,7 +57,80 @@ fun EntryListScreen(
 }
 
 @Composable
+fun ErrorScreen(onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Error: Unable to extract all required fields!", color = Color.Red)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onDismiss) {
+            Text("Okay")
+        }
+    }
+}
+
+@Composable
+fun BusinessCardEditor(
+    imageBase64: String,
+    initialName: String,
+    initialEmail: String,
+    initialPhone: String,
+    initialAddress: String,
+    onSave: (String, String, String, String) -> Unit
+) {
+    var nameState by remember { mutableStateOf(initialName) }
+    var emailState by remember { mutableStateOf(initialEmail) }
+    var phoneState by remember { mutableStateOf(initialPhone) }
+    var addressState by remember { mutableStateOf(initialAddress) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TextField(
+                value = nameState,
+                onValueChange = { nameState = it },
+                label = { Text("Name") }
+            )
+            TextField(
+                value = emailState,
+                onValueChange = { emailState = it },
+                label = { Text("Email") }
+            )
+            TextField(
+                value = phoneState,
+                onValueChange = { phoneState = it },
+                label = { Text("Phone") }
+            )
+            TextField(
+                value = addressState,
+                onValueChange = { addressState = it },
+                label = { Text("Address") }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(onClick = { onSave(nameState, emailState, phoneState, addressState) }) {
+                Text("Save")
+            }
+        }
+    }
+}
+
+
+@Composable
 fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteEntry: (BusinessCard) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -73,20 +146,42 @@ fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteE
                 Text(text = "Name: ${entry.name}", fontSize = 18.sp)
                 Text(text = "Email: ${entry.email}", fontSize = 14.sp)
                 Text(text = "Phone: ${entry.phoneNumber}", fontSize = 14.sp)
-                Text(text = "Address: ${entry.address}", fontSize = 14.sp )
+                Text(text = "Address: ${entry.address}", fontSize = 14.sp)
             }
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .background(Color.Red, shape = CircleShape)
-                    .clickable { deleteEntry(entry) },
+                    .clickable { showDialog = true },
                 contentAlignment = Alignment.Center
             ) {
                 Text("X", color = Color.White, fontSize = 20.sp)
             }
         }
     }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete this entry?") },
+            confirmButton = {
+                Button(onClick = {
+                    deleteEntry(entry)
+                    showDialog = false
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
+
 
 @Composable
 fun EntryDetailsScreen(entry: BusinessCard, onBack: () -> Unit) {

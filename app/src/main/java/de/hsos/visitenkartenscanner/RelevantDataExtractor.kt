@@ -21,7 +21,8 @@ suspend fun extractData(textToExtractFrom: String): String = suspendCancellableC
         putJsonArray("messages") {
             addJsonObject {
                 put("role", "system")
-                put("content", "Extrahiere den Namen des Unternehmens, die E-Mail, die Telefonnummer und die Anschrift. " +
+                put("content", "Extrahiere den Namen des Unternehmens, die E-Mail, die Telefonnummer und die Anschrift," +
+                        "wenn nicht möglich antworte nur /. " +
                         "Antworte nur mit den Daten in der genannten Reihenfolge getrennt durch ;")
             }
             addJsonObject {

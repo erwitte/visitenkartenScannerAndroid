@@ -11,14 +11,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import de.hsos.visitenkartenscanner.database.BusinessCard
 import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
@@ -27,19 +20,10 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import okhttp3.*
-import com.google.gson.*
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import extractData
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import java.io.IOException
 
 class MainActivity : ComponentActivity() {
     private lateinit var database: BusinessCardDatabase
@@ -56,8 +40,12 @@ class MainActivity : ComponentActivity() {
                 val base64Image = encodeImageToBase64(rotatedBitmap)
                 lifecycleScope.launch {
                     parsedString = extractDataFromImage(rotatedBitmap)
-                    //splitParsedString = parsedString.split(";").toTypedArray()
-                    showEditableScreen(base64Image, parsedString)
+                    val parts = parsedString.split(";")
+                    if (parts.size == 4){
+                        showEditableScreen(base64Image, parts)
+                    } else {
+                        showErrorScreen()
+                    }
                 }
             }
         }
@@ -74,6 +62,12 @@ class MainActivity : ComponentActivity() {
     private fun openCamera() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         cameraLauncher.launch(intent)
+    }
+
+    private fun showErrorScreen() {
+        setContent {
+            ErrorScreen { showMainScreen() }
+        }
     }
 
     private fun showMainScreen() {
@@ -105,34 +99,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun showEditableScreen(imageBase64: String, parsedText: String) {
-        val parts = parsedText.split(";")
+    private fun showEditableScreen(imageBase64: String, parts: List<String>) {
         val name = parts.getOrNull(0) ?: ""
         val email = parts.getOrNull(1) ?: ""
         val phone = parts.getOrNull(2) ?: ""
         val address = parts.getOrNull(3) ?: ""
 
         setContent {
-            var nameState by remember { mutableStateOf(name) }
-            var emailState by remember { mutableStateOf(email) }
-            var phoneState by remember { mutableStateOf(phone) }
-            var addressState by remember { mutableStateOf(address)}
-
-            Column(modifier = Modifier.padding(16.dp)) {
-                TextField(value = nameState, onValueChange = { nameState = it }, label = { Text("Name") })
-                TextField(value = emailState, onValueChange = { emailState = it }, label = { Text("Email") })
-                TextField(value = phoneState, onValueChange = { phoneState = it }, label = { Text("Phone") })
-                TextField(value = addressState, onValueChange = { addressState = it}, label = { Text("Address")})
-
-                Button(onClick = {
-                    saveBusinessCard(imageBase64, nameState, emailState, phoneState, addressState)
+            BusinessCardEditor(
+                imageBase64 = imageBase64,
+                initialName = name,
+                initialEmail = email,
+                initialPhone = phone,
+                initialAddress = address,
+                onSave = { updatedName, updatedEmail, updatedPhone, updatedAddress ->
+                    saveBusinessCard(imageBase64, updatedName, updatedEmail, updatedPhone, updatedAddress)
                     showMainScreen()
-                }) {
-                    Text("Save")
                 }
-            }
+            )
         }
     }
+
 
     private fun saveBusinessCard(
         imageBase64: String,
@@ -183,21 +170,7 @@ class MainActivity : ComponentActivity() {
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     lifecycleScope.launch {
-                        val extractedText = extractData(
-                            """
-                    Beyer
-                    Dämmtechnik
-                    Henning Beyer
-                    Geschaftsfuhrer
-                    Osloer Straße 21
-                    49377 Vechta
-                    GmbH
-                    Tel. 0 44 41 / 889 93 40
-                    Mobil 0172/431 49 24
-                    info@beyer-daemmtechnik.de
-                    www.bevem mtechnik.de
-                    """
-                        )
+                        val extractedText = extractData(visionText.text)
                         continuation.resume(extractedText)
                     }
                 }
