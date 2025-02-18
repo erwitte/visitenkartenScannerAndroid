@@ -11,7 +11,14 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import de.hsos.visitenkartenscanner.database.BusinessCard
 import de.hsos.visitenkartenscanner.database.BusinessCardDatabase
@@ -20,10 +27,19 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import okhttp3.*
+import com.google.gson.*
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import extractData
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import java.io.IOException
 
 class MainActivity : ComponentActivity() {
     private lateinit var database: BusinessCardDatabase
@@ -93,11 +109,23 @@ class MainActivity : ComponentActivity() {
             } else {
                 EntryDetailsScreen(
                     entry = selectedEntry!!,
-                    onBack = { selectedEntry = null }
+                    onBack = { selectedEntry = null },
+                    onSave = { updatedName, updatedEmail, updatedPhone, updatedAddress ->
+                        saveBusinessCard(
+                            selectedEntry!!.imageBase64,
+                            updatedName,
+                            updatedEmail,
+                            updatedPhone,
+                            updatedAddress,
+                            selectedEntry
+                        )
+                        selectedEntry = null  // Nach dem Speichern zurück zur Liste
+                    }
                 )
             }
         }
     }
+
 
     private fun showEditableScreen(imageBase64: String, parts: List<String>) {
         val name = parts.getOrNull(0) ?: ""
@@ -126,24 +154,38 @@ class MainActivity : ComponentActivity() {
         name: String,
         email: String,
         phone: String,
-        address: String
+        address: String,
+        existingCard: BusinessCard? = null
     ) {
         val coroutineScope = lifecycleScope
         coroutineScope.launch {
-            val newCard = BusinessCard(
+            val updatedCard = existingCard?.copy(
+                name = name,
+                phoneNumber = phone,
+                email = email,
+                imageBase64 = imageBase64,
+                address = address
+            ) ?: BusinessCard(
                 name = name,
                 phoneNumber = phone,
                 email = email,
                 imageBase64 = imageBase64,
                 address = address
             )
-            businessCardDao.insert(newCard)
+
+            if (existingCard == null) {
+                businessCardDao.insert(updatedCard) // Neuer Eintrag
+            } else {
+                businessCardDao.update(updatedCard) // Bestehenden Eintrag aktualisieren
+            }
 
             val updatedCards = businessCardDao.getAll()
             businessCards.clear()
             businessCards.addAll(updatedCards)
         }
     }
+
+
 
     private fun deleteBusinessCard(card: BusinessCard) {
         val coroutineScope = lifecycleScope

@@ -184,39 +184,69 @@ fun EntryCard(entry: BusinessCard, onEntryClick: (BusinessCard) -> Unit, deleteE
 
 
 @Composable
-fun EntryDetailsScreen(entry: BusinessCard, onBack: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Name: ${entry.name}", fontSize = 24.sp)
-        Text(text = "Email: ${entry.email}", fontSize = 18.sp)
-        Text(text = "Phone: ${entry.phoneNumber}", fontSize = 18.sp)
-        Text(text = "Address: ${entry.address}", fontSize = 18.sp )
+fun EntryDetailsScreen(
+    entry: BusinessCard,
+    onBack: () -> Unit,
+    onSave: (String, String, String, String) -> Unit
+) {
+    var isEditing by remember { mutableStateOf(false) }
 
-        Spacer(modifier = Modifier.height(16.dp))
+    if (isEditing) {
+        BusinessCardEditor(
+            imageBase64 = entry.imageBase64,
+            initialName = entry.name,
+            initialEmail = entry.email,
+            initialPhone = entry.phoneNumber,
+            initialAddress = entry.address,
+            onSave = { updatedName, updatedEmail, updatedPhone, updatedAddress ->
+                onSave(updatedName, updatedEmail, updatedPhone, updatedAddress)
+                isEditing = false
+            }
+        )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "Name: ${entry.name}", fontSize = 24.sp)
+            Text(text = "Email: ${entry.email}", fontSize = 18.sp)
+            Text(text = "Phone: ${entry.phoneNumber}", fontSize = 18.sp)
+            Text(text = "Address: ${entry.address}", fontSize = 18.sp)
 
-        val bitmap = remember(entry.imageBase64) { decodeBase64ToBitmap(entry.imageBase64) }
-        bitmap?.let {
-            Image(
-                bitmap = it.asImageBitmap(),
-                contentDescription = "Business Card Image",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .padding(top = 16.dp)
-            )
-        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+            val bitmap = remember(entry.imageBase64) { decodeBase64ToBitmap(entry.imageBase64) }
+            bitmap?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = "Business Card Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(top = 16.dp)
+                )
+            }
 
-        Button(onClick = onBack) {
-            Text("Back to List")
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row {
+                Button(onClick = onBack) {
+                    Text("Zurück zur Liste")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(onClick = { isEditing = true }) {
+                    Text("Bearbeiten")
+                }
+            }
         }
     }
 }
+
+
 
 fun decodeBase64ToBitmap(base64Str: String): Bitmap? {
     return try {
